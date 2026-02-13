@@ -24,7 +24,7 @@ No transcoding. No quality loss.
 
 ---
 
-## ⚙️ How It Works
+## How It Works
 
 The script:
 
