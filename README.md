@@ -60,7 +60,7 @@ It’s especially useful if you frequently download media for offline use.
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Method: Jellyfin JavaScript Injector
 
