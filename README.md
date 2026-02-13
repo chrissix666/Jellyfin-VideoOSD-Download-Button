@@ -11,6 +11,8 @@ No menu diving. No playback interruption. Just click and download.
 
 ---
 
+![VideoOSD Download Button](Screenshot.jpg)
+
 ## What It Does
 
 - Injects a **Download button** into the VideoOSD interface  
