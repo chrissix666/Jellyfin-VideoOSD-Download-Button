@@ -3,6 +3,7 @@
 Credits go to HighImKevin from the Jellyfin community, who helped me finalize this script after I was stuck on an issue for quite a while. Thanks again for the support!
 
 ---
+Tested on Windows 11 on Chrome:
 
 Adds a convenient **Download** button directly to the VideoOSD in Jellyfin Web.
 With one click, you can download the currently playing video as a **1:1 original file** into your default download folder.
@@ -74,7 +75,7 @@ The Download button will now appear in the VideoOSD.
 
 ## Compatibility
 
-- Designed for Jellyfin Web
+- Designed for Jellyfin Web (Windows 11, Chrome)
 - Works with dynamic page navigation
 - Requires a logged-in session (uses your API access token)
 
