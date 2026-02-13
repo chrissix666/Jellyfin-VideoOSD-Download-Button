@@ -1,6 +1,6 @@
 # Jellyfin VideoOSD Download Button
 
-Credits go to HighImKevin from the Jellyfin community, who helped me finalize this script after I was stuck on an issue for quite a while. Thanks again for the support!
+Credits go to HighImKevin from the Jellyfin Community, who helped me finalize this script after I was stuck on an issue for quite a while. Thanks again for the support!
 
 ---
 Tested on Windows 11 on Chrome:
