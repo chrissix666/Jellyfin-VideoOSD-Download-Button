@@ -6,9 +6,7 @@ Credits go to HighImKevin from the Jellyfin community, who helped me finalize th
 ---
 
 Adds a convenient **Download** button directly to the VideoOSD in Jellyfin Web.
-
-With one click, you can download the currently playing video as a **1:1 original file** using Jellyfin’s built-in API endpoint.
-
+With one click, you can download the currently playing video as a **1:1 original file** into your default download folder.
 No menu diving. No playback interruption. Just click and download.
 
 ---
