@@ -78,6 +78,7 @@ The Download button will now appear in the VideoOSD.
 ## Compatibility
 
 - Designed for Jellyfin Web (Windows 11, Chrome)
+- Only tested on 10.10.7 Web version (Icon injection may vary)
 - Works with dynamic page navigation
 - Requires a logged-in session (uses your API access token)
 
