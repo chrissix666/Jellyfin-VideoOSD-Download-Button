@@ -1,3 +1,5 @@
+Note: This script is compatible with the [Jellyfin-VideoOSD-CustomOnOff-Menu](https://github.com/chrissix666/Jellyfin-VideoOSD-CustomOnOff-Menu).
+
 # Jellyfin VideoOSD Download Button
 
 Credits go to HighImKevin from the Jellyfin Community, who helped me finalize this script after I was stuck on an issue for quite a while. Thanks again for the support!
