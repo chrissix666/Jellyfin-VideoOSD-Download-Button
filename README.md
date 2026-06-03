@@ -1,3 +1,7 @@
+Overview of all my Jellyfin Web Video OSD projects: [Jellyfin-VideoOSD-Projects-Overview](https://github.com/chrissix666/Jellyfin-VideoOSD-Projects-Overview)
+
+---
+
 Note: This script is compatible with the [Jellyfin-VideoOSD-CustomOnOff-Menu](https://github.com/chrissix666/Jellyfin-VideoOSD-CustomOnOff-Menu).
 
 # Jellyfin VideoOSD Download Button
