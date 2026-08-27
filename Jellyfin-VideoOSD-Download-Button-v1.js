@@ -1,8 +1,21 @@
+function dlIsSupportedPlatform() {
+    const ua = navigator.userAgent.toLowerCase();
+    const isMobile = ['mobi', 'ipad', 'iphone', 'ipod', 'silk', 'opera mini'].some((term) => ua.includes(term));
+    const isTv = ['tv', 'samsungbrowser', 'viera', 'web0s'].some((term) => ua.includes(term));
+    const isTizen = ua.includes('tizen') || window.tizen != null;
+    const isAndroid = ua.includes('android');
+    const isIOS = ['ipad', 'iphone', 'ipod'].some((term) => ua.includes(term)) || (ua.includes('macintosh') && navigator.maxTouchPoints > 1);
+    return !(isMobile || isTv || isTizen || isAndroid || isIOS);
+}
+
 (function () {
     'use strict';
 
+    if (!dlIsSupportedPlatform()) return;
+
     const ADDON_ID = 'downloadButton';
     const ADDON_NAME = 'Download Button';
+    const RESPONSIVE_STYLE_ID = 'downloadButtonResponsiveStyle';
 
     const CUSTOMS_API_NAME = 'JellyfinVideoOSDCustomsMenu';
     const CUSTOMS_WAIT_MS = 300;
@@ -31,6 +44,19 @@
 
     const isEnabledByCustomsState = () =>
         localStorage.getItem(CUSTOMS_STORAGE_KEY) !== 'false';
+
+    const ensureResponsiveStyle = () => {
+        if (document.getElementById(RESPONSIVE_STYLE_ID)) return;
+
+        const style = document.createElement('style');
+        style.id = RESPONSIVE_STYLE_ID;
+        style.textContent = `
+        @media all and (max-width: 50em) {
+            .videoOsdBottom .btnDownload { display: none !important; }
+        }
+        `;
+        document.head.appendChild(style);
+    };
 
 
 
@@ -118,6 +144,7 @@
         const container = favBtn.parentNode;
 
         if (!container.querySelector('.btnDownload')) {
+            ensureResponsiveStyle();
             container.insertBefore(ensureBtn(), favBtn);
         }
 
