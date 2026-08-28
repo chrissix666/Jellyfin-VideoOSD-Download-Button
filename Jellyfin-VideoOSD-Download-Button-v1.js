@@ -47,89 +47,20 @@ function dlIsSupportedPlatform() {
     };
 
     async function fetchPluginConfig() {
-        if (!window.ApiClient || typeof ApiClient.getPluginConfiguration !== 'function') {
-            return null;
-        }
-        try {
-            return await ApiClient.getPluginConfiguration(PLUGIN_GUID);
-        } catch (err) {
-            return null;
-        }
-    }
-
-    function applyPluginConfig(pluginConfig) {
-        if (!pluginConfig) return;
-
-        if (typeof pluginConfig.DownloadHideOnNarrowWindow === 'boolean') {
-            CONFIG.hideOnNarrowWindow = pluginConfig.DownloadHideOnNarrowWindow;
-        }
-
-        if (typeof pluginConfig.DownloadFilenameChoice === 'string') {
-            CONFIG.filenameChoice = pluginConfig.DownloadFilenameChoice;
-        }
-        if (typeof pluginConfig.DownloadIncludeYearMovies === 'boolean') {
-            CONFIG.includeYearMovies = pluginConfig.DownloadIncludeYearMovies;
-        }
-        if (typeof pluginConfig.DownloadIncludeYearEpisodes === 'boolean') {
-            CONFIG.includeYearEpisodes = pluginConfig.DownloadIncludeYearEpisodes;
-        }
-        if (typeof pluginConfig.DownloadIncludeYearVideos === 'boolean') {
-            CONFIG.includeYearVideos = pluginConfig.DownloadIncludeYearVideos;
-        }
-    }
-
-    const sanitize = str =>
-        str.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
-
-    // NEW: unlike Screenshot (which had to guess the now-playing item via
-    // ApiClient.getSessions()), this mod already has the exact item id
-    // synchronously via getCurrentVideoId() below, so a direct
-    // ApiClient.getItem() lookup is simpler and more reliable here, no
-    // session-matching heuristic needed. Builds both the label (same
-    // colon-replacement + per-content-kind year logic as Screenshot's
-    // Library-Name option) and the real file extension (from
-    // MediaSources[0].Container), since a computed label needs its own
-    // extension appended, unlike the 'original' mode which relies entirely
-    // on the server's Content-Disposition header.
-    async function getItemInfo(id) {
-        if (!window.ApiClient) return null;
-
-        try {
-            const userId = ApiClient.getCurrentUserId();
-            const item = await ApiClient.getItem(userId, id);
-            if (!item) return null;
-
-            let kind = 'video';
-            if (item.Type === 'Movie') kind = 'movie';
-            else if (item.Type === 'Episode') kind = 'episode';
-
-            const includeYear = kind === 'movie' ? CONFIG.includeYearMovies
-                : kind === 'episode' ? CONFIG.includeYearEpisodes
-                    : CONFIG.includeYearVideos;
-
-            let label;
-            if (kind === 'episode') {
-                const seriesName = (item.SeriesName || '').replace(/\s*:\s*/g, ' - ').trim();
-                const season = String(item.ParentIndexNumber ?? 0).padStart(2, '0');
-                const episode = String(item.IndexNumber ?? 0).padStart(2, '0');
-                const episodeName = (item.Name || '').trim();
-                const yearSuffix = includeYear && item.ProductionYear ? ` (${item.ProductionYear})` : '';
-                label = `${seriesName} - S${season}E${episode} - ${episodeName}${yearSuffix}`;
-            } else {
-                let text = item.Name || '';
-                if (includeYear && item.ProductionYear) {
-                    text += ` (${item.ProductionYear})`;
+        const maxAttempts = 120;
+        const delayMs = 250;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            if (window.ApiClient && typeof ApiClient.getPluginConfiguration === 'function') {
+                try {
+                    const config = await ApiClient.getPluginConfiguration(PLUGIN_GUID);
+                    if (config) return config;
+                } catch (err) {
+                    // fall through, try again after the delay below
                 }
-                text = text.replace(/\s*:\s*/g, ' - ');
-                label = text;
             }
-
-            const extension = item.MediaSources?.[0]?.Container || item.Container || '';
-
-            return { label: sanitize(label), extension };
-        } catch (err) {
-            return null;
+            await new Promise(function (resolve) { setTimeout(resolve, delayMs); });
         }
+        return null;
     }
     // ---- END PLUGIN ADAPTER ----
 
@@ -309,9 +240,25 @@ function dlIsSupportedPlatform() {
 
         enabled = true;
 
+        // FIX for a possible cause of a real, live-observed hang: this
+        // observer watches the whole document.body subtree for any
+        // style/class change, which fires constantly during active video
+        // playback (Jellyfin's own progress bar updates style/class very
+        // frequently), and it's one of 3 currently-enabled mods with an
+        // essentially identical, independent observer, all reacting to
+        // the same mutations simultaneously. Debounced to at most once
+        // every 100ms: still responsive enough to catch newly inserted
+        // elements quickly, but coalesces a rapid burst of many mutations
+        // into a single actual check instead of running the callback
+        // hundreds or thousands of times per second.
+        let debounceTimer = null;
         observer = new MutationObserver(() => {
-            injectButton();
-            checkVideoChange();
+            if (debounceTimer) return;
+            debounceTimer = setTimeout(() => {
+                debounceTimer = null;
+                injectButton();
+                checkVideoChange();
+            }, 100);
         });
 
         observer.observe(document.body, {
