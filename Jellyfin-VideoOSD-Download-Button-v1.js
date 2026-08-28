@@ -13,6 +13,126 @@ function dlIsSupportedPlatform() {
 
     if (!dlIsSupportedPlatform()) return;
 
+    // ---- PLUGIN ADAPTER: config source, retrofit for VideoOSD Tweaks and Candy ----
+    const PLUGIN_GUID = '468b1980-7a6c-4e45-a129-24825085ece4';
+
+    const CONFIG = {
+        // ============================================================
+        // == SHARED VALUES (both standalone and plugin usage) ==
+        // None of these were configurable at all before this retrofit
+        // (hide-on-narrow-window was a fixed CSS rule, and the
+        // download was always the raw server filename with no
+        // alternative). No dual-mode branch needed, same reasoning as
+        // the other bottom-right mods. No Centered Gap field here:
+        // corrected, General/Individual Centered Gap only ever
+        // applies to the 3 bottom-left mods (A-B Loop, Speed,
+        // FrameByFrame), never to Download/Screenshot in the
+        // bottom-right zone.
+        // ============================================================
+
+        hideOnNarrowWindow: true,
+
+        // 'original' | 'library'. Original script always behaved like
+        // 'original' (a.download left empty, browser uses the
+        // server's own Content-Disposition filename).
+        filenameChoice: 'original',
+
+        // Only relevant when filenameChoice is 'library'. Same
+        // defaults and same colon-replacement/year logic as
+        // Screenshot's identical setting, confirmed to be shared
+        // 1:1 between the two mods.
+        includeYearMovies: true,
+        includeYearEpisodes: false,
+        includeYearVideos: false
+    };
+
+    async function fetchPluginConfig() {
+        if (!window.ApiClient || typeof ApiClient.getPluginConfiguration !== 'function') {
+            return null;
+        }
+        try {
+            return await ApiClient.getPluginConfiguration(PLUGIN_GUID);
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function applyPluginConfig(pluginConfig) {
+        if (!pluginConfig) return;
+
+        if (typeof pluginConfig.DownloadHideOnNarrowWindow === 'boolean') {
+            CONFIG.hideOnNarrowWindow = pluginConfig.DownloadHideOnNarrowWindow;
+        }
+
+        if (typeof pluginConfig.DownloadFilenameChoice === 'string') {
+            CONFIG.filenameChoice = pluginConfig.DownloadFilenameChoice;
+        }
+        if (typeof pluginConfig.DownloadIncludeYearMovies === 'boolean') {
+            CONFIG.includeYearMovies = pluginConfig.DownloadIncludeYearMovies;
+        }
+        if (typeof pluginConfig.DownloadIncludeYearEpisodes === 'boolean') {
+            CONFIG.includeYearEpisodes = pluginConfig.DownloadIncludeYearEpisodes;
+        }
+        if (typeof pluginConfig.DownloadIncludeYearVideos === 'boolean') {
+            CONFIG.includeYearVideos = pluginConfig.DownloadIncludeYearVideos;
+        }
+    }
+
+    const sanitize = str =>
+        str.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+
+    // NEW: unlike Screenshot (which had to guess the now-playing item via
+    // ApiClient.getSessions()), this mod already has the exact item id
+    // synchronously via getCurrentVideoId() below, so a direct
+    // ApiClient.getItem() lookup is simpler and more reliable here, no
+    // session-matching heuristic needed. Builds both the label (same
+    // colon-replacement + per-content-kind year logic as Screenshot's
+    // Library-Name option) and the real file extension (from
+    // MediaSources[0].Container), since a computed label needs its own
+    // extension appended, unlike the 'original' mode which relies entirely
+    // on the server's Content-Disposition header.
+    async function getItemInfo(id) {
+        if (!window.ApiClient) return null;
+
+        try {
+            const userId = ApiClient.getCurrentUserId();
+            const item = await ApiClient.getItem(userId, id);
+            if (!item) return null;
+
+            let kind = 'video';
+            if (item.Type === 'Movie') kind = 'movie';
+            else if (item.Type === 'Episode') kind = 'episode';
+
+            const includeYear = kind === 'movie' ? CONFIG.includeYearMovies
+                : kind === 'episode' ? CONFIG.includeYearEpisodes
+                    : CONFIG.includeYearVideos;
+
+            let label;
+            if (kind === 'episode') {
+                const seriesName = (item.SeriesName || '').replace(/\s*:\s*/g, ' - ').trim();
+                const season = String(item.ParentIndexNumber ?? 0).padStart(2, '0');
+                const episode = String(item.IndexNumber ?? 0).padStart(2, '0');
+                const episodeName = (item.Name || '').trim();
+                const yearSuffix = includeYear && item.ProductionYear ? ` (${item.ProductionYear})` : '';
+                label = `${seriesName} - S${season}E${episode} - ${episodeName}${yearSuffix}`;
+            } else {
+                let text = item.Name || '';
+                if (includeYear && item.ProductionYear) {
+                    text += ` (${item.ProductionYear})`;
+                }
+                text = text.replace(/\s*:\s*/g, ' - ');
+                label = text;
+            }
+
+            const extension = item.MediaSources?.[0]?.Container || item.Container || '';
+
+            return { label: sanitize(label), extension };
+        } catch (err) {
+            return null;
+        }
+    }
+    // ---- END PLUGIN ADAPTER ----
+
     const ADDON_ID = 'downloadButton';
     const ADDON_NAME = 'Download Button';
     const RESPONSIVE_STYLE_ID = 'downloadButtonResponsiveStyle';
@@ -45,8 +165,15 @@ function dlIsSupportedPlatform() {
     const isEnabledByCustomsState = () =>
         localStorage.getItem(CUSTOMS_STORAGE_KEY) !== 'false';
 
-    const ensureResponsiveStyle = () => {
-        if (document.getElementById(RESPONSIVE_STYLE_ID)) return;
+    // Renamed from ensureResponsiveStyle(): can now also remove the style,
+    // not just add it, same pattern as the other retrofitted mods.
+    const refreshResponsiveStyle = () => {
+        const existing = document.getElementById(RESPONSIVE_STYLE_ID);
+        if (!CONFIG.hideOnNarrowWindow) {
+            if (existing) existing.remove();
+            return;
+        }
+        if (existing) return;
 
         const style = document.createElement('style');
         style.id = RESPONSIVE_STYLE_ID;
@@ -57,8 +184,6 @@ function dlIsSupportedPlatform() {
         `;
         document.head.appendChild(style);
     };
-
-
 
     const getCurrentVideoId = () => {
         const ratingBtn = document.querySelector('#videoOsdPage:not(.hide) .btnUserRating');
@@ -73,7 +198,12 @@ function dlIsSupportedPlatform() {
 
 
 
-    const downloadCurrentVideo = () => {
+    // CHANGED: now async and reads CONFIG.filenameChoice. The 'original'
+    // branch is completely untouched from the original script (same URL
+    // construction, same a.download = '' relying on the server's
+    // Content-Disposition header). The 'library' branch is entirely new,
+    // using getItemInfo() above.
+    const downloadCurrentVideo = async () => {
         const id = getCurrentVideoId();
         if (!id || !window.ApiClient) return;
 
@@ -84,7 +214,16 @@ function dlIsSupportedPlatform() {
 
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = '';
+
+        if (CONFIG.filenameChoice === 'library') {
+            const info = await getItemInfo(id);
+            a.download = (info && info.label)
+                ? (info.extension ? `${info.label}.${info.extension}` : info.label)
+                : ''; // lookup failed -- fall back to original server-driven behavior
+        } else {
+            a.download = '';
+        }
+
         a.style.display = 'none';
 
         document.body.appendChild(a);
@@ -144,8 +283,9 @@ function dlIsSupportedPlatform() {
         const container = favBtn.parentNode;
 
         if (!container.querySelector('.btnDownload')) {
-            ensureResponsiveStyle();
-            container.insertBefore(ensureBtn(), favBtn);
+            refreshResponsiveStyle();
+            const newBtn = ensureBtn();
+            container.insertBefore(newBtn, favBtn);
         }
 
         return true;
@@ -281,5 +421,12 @@ function dlIsSupportedPlatform() {
             once: true
         });
     }
+
+    // ---- PLUGIN ADAPTER: apply fetched config once it arrives ----
+    fetchPluginConfig().then(function (pluginConfig) {
+        applyPluginConfig(pluginConfig);
+        refreshResponsiveStyle();
+    });
+    // ---- END PLUGIN ADAPTER ----
 
 })();
