@@ -192,7 +192,20 @@ function dlIsSupportedPlatform() {
             return ratingBtn.dataset.id;
         }
 
-        console.warn('Could not find current video ID');
+        // FIX for a real bug found live: this used to console.warn() here
+        // unconditionally. checkVideoChange() below calls this on EVERY
+        // single MutationObserver tick (any class/style change anywhere
+        // on the page, which happens constantly during active playback,
+        // e.g. the progress slider updates), so a legitimate, expected
+        // "not available yet" moment (the OSD isn't showing, the rating
+        // button hasn't received its data-id yet, etc.) was logging a
+        // warning every single time, not just once. Confirmed live: over
+        // 59,000 repetitions of this single warning during one browser
+        // session, which is itself a serious performance problem (Chrome
+        // buffers/processes that volume of console output even with
+        // devtools closed), independent of and in addition to whatever
+        // else it was cluttering. This return path is a normal, frequent,
+        // expected outcome, not something worth logging at all.
         return null;
     };
 
