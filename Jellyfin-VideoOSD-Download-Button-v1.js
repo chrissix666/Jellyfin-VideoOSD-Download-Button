@@ -214,7 +214,7 @@ function dlIsSupportedPlatform() {
         if (!btn) {
             btn = document.createElement('button');
             btn.className = 'btnDownload autoSize paper-icon-button-light';
-            btn.title = 'Download Video';
+            btn.title = 'Download';
 
             const icon = document.createElement('span');
             icon.className = 'xlargePaperIconButton material-symbols-outlined';
