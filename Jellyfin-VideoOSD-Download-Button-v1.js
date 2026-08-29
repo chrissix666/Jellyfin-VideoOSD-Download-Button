@@ -62,6 +62,39 @@ function dlIsSupportedPlatform() {
         }
         return null;
     }
+
+    // FIX for a real, confirmed bug found via a faithful full-stack test
+    // (all real scripts + real Jellyfin HTML together): this function was
+    // CALLED at the bottom of this file (inside fetchPluginConfig()'s
+    // .then), but never actually defined anywhere in it -- every other
+    // addon in this project defines its own applyPluginConfig(), this
+    // one simply lacked it. At runtime the call threw a ReferenceError
+    // inside the promise chain (an unhandled rejection, easy to miss),
+    // with the real consequence that ALL admin-configured Download
+    // settings were silently ignored and the script permanently ran on
+    // its standalone defaults, while the refreshResponsiveStyle() call
+    // scheduled right after it never ran from that path either. Mapping
+    // below mirrors the same pattern every other addon uses; guarded
+    // per-field so a missing/partial config never wipes a default.
+    function applyPluginConfig(pluginConfig) {
+        if (!pluginConfig) return;
+
+        if (typeof pluginConfig.DownloadHideOnNarrowWindow === 'boolean') {
+            CONFIG.hideOnNarrowWindow = pluginConfig.DownloadHideOnNarrowWindow;
+        }
+        if (typeof pluginConfig.DownloadFilenameChoice === 'string' && pluginConfig.DownloadFilenameChoice) {
+            CONFIG.filenameChoice = pluginConfig.DownloadFilenameChoice;
+        }
+        if (typeof pluginConfig.DownloadIncludeYearMovies === 'boolean') {
+            CONFIG.includeYearMovies = pluginConfig.DownloadIncludeYearMovies;
+        }
+        if (typeof pluginConfig.DownloadIncludeYearEpisodes === 'boolean') {
+            CONFIG.includeYearEpisodes = pluginConfig.DownloadIncludeYearEpisodes;
+        }
+        if (typeof pluginConfig.DownloadIncludeYearVideos === 'boolean') {
+            CONFIG.includeYearVideos = pluginConfig.DownloadIncludeYearVideos;
+        }
+    }
     // ---- END PLUGIN ADAPTER ----
 
     const ADDON_ID = 'downloadButton';
