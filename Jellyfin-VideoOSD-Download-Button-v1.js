@@ -187,7 +187,6 @@ function dlIsSupportedPlatform() {
         const downloadUrl =
             `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
 
-        console.log('Downloading video from', downloadUrl);
 
         const a = document.createElement('a');
         a.href = downloadUrl;
@@ -370,7 +369,6 @@ function dlIsSupportedPlatform() {
             enable();
         }
 
-        console.log('[Jellyfin Download Button] Registered with Customs.');
 
         return true;
     };
@@ -404,7 +402,7 @@ function dlIsSupportedPlatform() {
 
         startCustomsRegistrationWatcher();
 
-        console.log('[Jellyfin Download Button] Script loaded.');
+        console.log('[VideoOSD Download Button] Script loaded.');
     };
 
     if (document.documentElement) {
@@ -419,6 +417,8 @@ function dlIsSupportedPlatform() {
     fetchPluginConfig().then(function (pluginConfig) {
         applyPluginConfig(pluginConfig);
         refreshResponsiveStyle();
+    }).catch(function (err) {
+        console.error('[VideoOSD Download Button] config apply failed:', err);
     });
     // ---- END PLUGIN ADAPTER ----
 
