@@ -77,7 +77,16 @@ function dlIsSupportedPlatform() {
     // below mirrors the same pattern every other addon uses; guarded
     // per-field so a missing/partial config never wipes a default.
     function applyPluginConfig(pluginConfig) {
-        if (!pluginConfig) return;
+        if (!pluginConfig) {
+            console.log('[VideoOSD Download DEBUG] applyPluginConfig: pluginConfig is null/undefined');
+            return;
+        }
+
+        console.log('[VideoOSD Download DEBUG] applyPluginConfig called');
+        console.log('[VideoOSD Download DEBUG] filenameChoice:', pluginConfig.DownloadFilenameChoice, '| type:', typeof pluginConfig.DownloadFilenameChoice);
+        console.log('[VideoOSD Download DEBUG] includeYearMovies:', pluginConfig.DownloadIncludeYearMovies, '| type:', typeof pluginConfig.DownloadIncludeYearMovies);
+        console.log('[VideoOSD Download DEBUG] includeYearEpisodes:', pluginConfig.DownloadIncludeYearEpisodes, '| type:', typeof pluginConfig.DownloadIncludeYearEpisodes);
+        console.log('[VideoOSD Download DEBUG] includeYearVideos:', pluginConfig.DownloadIncludeYearVideos, '| type:', typeof pluginConfig.DownloadIncludeYearVideos);
 
         if (typeof pluginConfig.DownloadHideOnNarrowWindow === 'boolean') {
             CONFIG.hideOnNarrowWindow = pluginConfig.DownloadHideOnNarrowWindow;
@@ -94,6 +103,13 @@ function dlIsSupportedPlatform() {
         if (typeof pluginConfig.DownloadIncludeYearVideos === 'boolean') {
             CONFIG.includeYearVideos = pluginConfig.DownloadIncludeYearVideos;
         }
+
+        console.log('[VideoOSD Download DEBUG] CONFIG after apply:', JSON.stringify({
+            filenameChoice: CONFIG.filenameChoice,
+            includeYearMovies: CONFIG.includeYearMovies,
+            includeYearEpisodes: CONFIG.includeYearEpisodes,
+            includeYearVideos: CONFIG.includeYearVideos
+        }));
     }
     // ---- END PLUGIN ADAPTER ----
 
@@ -226,22 +242,29 @@ function dlIsSupportedPlatform() {
     // using getItemInfo() above.
     const downloadCurrentVideo = async () => {
         const id = getCurrentVideoId();
-        if (!id || !window.ApiClient) return;
+        if (!id || !window.ApiClient) {
+            console.log('[VideoOSD Download DEBUG] downloadCurrentVideo: no id or no ApiClient', id);
+            return;
+        }
+
+        console.log('[VideoOSD Download DEBUG] downloadCurrentVideo: id =', id, '| filenameChoice =', CONFIG.filenameChoice);
 
         const downloadUrl =
             `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
-
 
         const a = document.createElement('a');
         a.href = downloadUrl;
 
         if (CONFIG.filenameChoice === 'library') {
             const info = await getItemInfo(id);
+            console.log('[VideoOSD Download DEBUG] getItemInfo result:', JSON.stringify(info));
             a.download = (info && info.label)
                 ? (info.extension ? `${info.label}.${info.extension}` : info.label)
-                : ''; // lookup failed -- fall back to original server-driven behavior
+                : '';
+            console.log('[VideoOSD Download DEBUG] a.download set to:', a.download);
         } else {
             a.download = '';
+            console.log('[VideoOSD Download DEBUG] original mode: a.download = empty');
         }
 
         a.style.display = 'none';
