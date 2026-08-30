@@ -78,15 +78,15 @@ function dlIsSupportedPlatform() {
     // per-field so a missing/partial config never wipes a default.
     function applyPluginConfig(pluginConfig) {
         if (!pluginConfig) {
-            console.log('[VideoOSD Download DEBUG] applyPluginConfig: pluginConfig is null/undefined');
+            console.warn('[VideoOSD Download DEBUG] applyPluginConfig: pluginConfig is null/undefined');
             return;
         }
 
-        console.log('[VideoOSD Download DEBUG] applyPluginConfig called');
-        console.log('[VideoOSD Download DEBUG] filenameChoice:', pluginConfig.DownloadFilenameChoice, '| type:', typeof pluginConfig.DownloadFilenameChoice);
-        console.log('[VideoOSD Download DEBUG] includeYearMovies:', pluginConfig.DownloadIncludeYearMovies, '| type:', typeof pluginConfig.DownloadIncludeYearMovies);
-        console.log('[VideoOSD Download DEBUG] includeYearEpisodes:', pluginConfig.DownloadIncludeYearEpisodes, '| type:', typeof pluginConfig.DownloadIncludeYearEpisodes);
-        console.log('[VideoOSD Download DEBUG] includeYearVideos:', pluginConfig.DownloadIncludeYearVideos, '| type:', typeof pluginConfig.DownloadIncludeYearVideos);
+        console.warn('[VideoOSD Download DEBUG] applyPluginConfig called');
+        console.warn('[VideoOSD Download DEBUG] filenameChoice:', pluginConfig.DownloadFilenameChoice, '| type:', typeof pluginConfig.DownloadFilenameChoice);
+        console.warn('[VideoOSD Download DEBUG] includeYearMovies:', pluginConfig.DownloadIncludeYearMovies, '| type:', typeof pluginConfig.DownloadIncludeYearMovies);
+        console.warn('[VideoOSD Download DEBUG] includeYearEpisodes:', pluginConfig.DownloadIncludeYearEpisodes, '| type:', typeof pluginConfig.DownloadIncludeYearEpisodes);
+        console.warn('[VideoOSD Download DEBUG] includeYearVideos:', pluginConfig.DownloadIncludeYearVideos, '| type:', typeof pluginConfig.DownloadIncludeYearVideos);
 
         if (typeof pluginConfig.DownloadHideOnNarrowWindow === 'boolean') {
             CONFIG.hideOnNarrowWindow = pluginConfig.DownloadHideOnNarrowWindow;
@@ -104,7 +104,7 @@ function dlIsSupportedPlatform() {
             CONFIG.includeYearVideos = pluginConfig.DownloadIncludeYearVideos;
         }
 
-        console.log('[VideoOSD Download DEBUG] CONFIG after apply:', JSON.stringify({
+        console.warn('[VideoOSD Download DEBUG] CONFIG after apply:', JSON.stringify({
             filenameChoice: CONFIG.filenameChoice,
             includeYearMovies: CONFIG.includeYearMovies,
             includeYearEpisodes: CONFIG.includeYearEpisodes,
@@ -243,11 +243,11 @@ function dlIsSupportedPlatform() {
     const downloadCurrentVideo = async () => {
         const id = getCurrentVideoId();
         if (!id || !window.ApiClient) {
-            console.log('[VideoOSD Download DEBUG] downloadCurrentVideo: no id or no ApiClient', id);
+            console.warn('[VideoOSD Download DEBUG] downloadCurrentVideo: no id or no ApiClient', id);
             return;
         }
 
-        console.log('[VideoOSD Download DEBUG] downloadCurrentVideo: id =', id, '| filenameChoice =', CONFIG.filenameChoice);
+        console.warn('[VideoOSD Download DEBUG] downloadCurrentVideo: id =', id, '| filenameChoice =', CONFIG.filenameChoice);
 
         const downloadUrl =
             `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
@@ -257,14 +257,14 @@ function dlIsSupportedPlatform() {
 
         if (CONFIG.filenameChoice === 'library') {
             const info = await getItemInfo(id);
-            console.log('[VideoOSD Download DEBUG] getItemInfo result:', JSON.stringify(info));
+            console.warn('[VideoOSD Download DEBUG] getItemInfo result:', JSON.stringify(info));
             a.download = (info && info.label)
                 ? (info.extension ? `${info.label}.${info.extension}` : info.label)
                 : '';
-            console.log('[VideoOSD Download DEBUG] a.download set to:', a.download);
+            console.warn('[VideoOSD Download DEBUG] a.download set to:', a.download);
         } else {
             a.download = '';
-            console.log('[VideoOSD Download DEBUG] original mode: a.download = empty');
+            console.warn('[VideoOSD Download DEBUG] original mode: a.download = empty');
         }
 
         a.style.display = 'none';
