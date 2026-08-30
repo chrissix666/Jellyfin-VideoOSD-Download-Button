@@ -175,6 +175,50 @@ function dlIsSupportedPlatform() {
 
 
 
+    const sanitizeFilename = str =>
+        str.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+
+    const getItemInfo = async (id) => {
+        if (!window.ApiClient || !id) return null;
+        try {
+            const userId = ApiClient.getCurrentUserId();
+            const item = await ApiClient.getItem(userId, id);
+            if (!item) return null;
+
+            let kind = 'video';
+            if (item.Type === 'Movie') kind = 'movie';
+            else if (item.Type === 'Episode') kind = 'episode';
+
+            const includeYear = kind === 'movie' ? CONFIG.includeYearMovies
+                : kind === 'episode' ? CONFIG.includeYearEpisodes
+                : CONFIG.includeYearVideos;
+
+            let label = item.Name || '';
+            if (item.Type === 'Episode' && item.SeriesName) {
+                const s = String(item.ParentIndexNumber || 1).padStart(2, '0');
+                const e = String(item.IndexNumber || 1).padStart(2, '0');
+                label = `${item.SeriesName} - S${s}E${e} - ${item.Name || ''}`;
+            }
+            if (includeYear && item.ProductionYear) {
+                label += ` (${item.ProductionYear})`;
+            }
+
+            label = label.replace(/\s*:\s*/g, ' - ');
+            label = sanitizeFilename(label);
+
+            let extension = null;
+            if (item.Path) {
+                const m = item.Path.match(/\.([^./\\]+)$/);
+                if (m) extension = m[1].toLowerCase();
+            }
+
+            return { label: label, extension: extension };
+        } catch (err) {
+            console.error('[VideoOSD Download Button] getItemInfo failed:', err);
+            return null;
+        }
+    };
+
     // CHANGED: now async and reads CONFIG.filenameChoice. The 'original'
     // branch is completely untouched from the original script (same URL
     // construction, same a.download = '' relying on the server's
