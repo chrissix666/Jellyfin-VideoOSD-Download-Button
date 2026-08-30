@@ -41,7 +41,7 @@ function dlIsSupportedPlatform() {
         // defaults and same colon-replacement/year logic as
         // Screenshot's identical setting, confirmed to be shared
         // 1:1 between the two mods.
-        includeYearMovies: true,
+        includeYearMovies: false,
         includeYearEpisodes: false,
         includeYearVideos: false
     };
@@ -77,16 +77,7 @@ function dlIsSupportedPlatform() {
     // below mirrors the same pattern every other addon uses; guarded
     // per-field so a missing/partial config never wipes a default.
     function applyPluginConfig(pluginConfig) {
-        if (!pluginConfig) {
-            console.warn('[VideoOSD Download DEBUG] applyPluginConfig: pluginConfig is null/undefined');
-            return;
-        }
-
-        console.warn('[VideoOSD Download DEBUG] applyPluginConfig called');
-        console.warn('[VideoOSD Download DEBUG] filenameChoice:', pluginConfig.DownloadFilenameChoice, '| type:', typeof pluginConfig.DownloadFilenameChoice);
-        console.warn('[VideoOSD Download DEBUG] includeYearMovies:', pluginConfig.DownloadIncludeYearMovies, '| type:', typeof pluginConfig.DownloadIncludeYearMovies);
-        console.warn('[VideoOSD Download DEBUG] includeYearEpisodes:', pluginConfig.DownloadIncludeYearEpisodes, '| type:', typeof pluginConfig.DownloadIncludeYearEpisodes);
-        console.warn('[VideoOSD Download DEBUG] includeYearVideos:', pluginConfig.DownloadIncludeYearVideos, '| type:', typeof pluginConfig.DownloadIncludeYearVideos);
+        if (!pluginConfig) return;
 
         if (typeof pluginConfig.DownloadHideOnNarrowWindow === 'boolean') {
             CONFIG.hideOnNarrowWindow = pluginConfig.DownloadHideOnNarrowWindow;
@@ -104,12 +95,6 @@ function dlIsSupportedPlatform() {
             CONFIG.includeYearVideos = pluginConfig.DownloadIncludeYearVideos;
         }
 
-        console.warn('[VideoOSD Download DEBUG] CONFIG after apply:', JSON.stringify({
-            filenameChoice: CONFIG.filenameChoice,
-            includeYearMovies: CONFIG.includeYearMovies,
-            includeYearEpisodes: CONFIG.includeYearEpisodes,
-            includeYearVideos: CONFIG.includeYearVideos
-        }));
     }
     // ---- END PLUGIN ADAPTER ----
 
@@ -235,36 +220,27 @@ function dlIsSupportedPlatform() {
         }
     };
 
-    // CHANGED: now async and reads CONFIG.filenameChoice. The 'original'
-    // branch is completely untouched from the original script (same URL
-    // construction, same a.download = '' relying on the server's
-    // Content-Disposition header). The 'library' branch is entirely new,
-    // using getItemInfo() above.
     const downloadCurrentVideo = async () => {
         const id = getCurrentVideoId();
-        if (!id || !window.ApiClient) {
-            console.warn('[VideoOSD Download DEBUG] downloadCurrentVideo: no id or no ApiClient', id);
-            return;
-        }
-
-        console.warn('[VideoOSD Download DEBUG] downloadCurrentVideo: id =', id, '| filenameChoice =', CONFIG.filenameChoice);
-
-        const downloadUrl =
-            `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
+        if (!id || !window.ApiClient) return;
 
         const a = document.createElement('a');
-        a.href = downloadUrl;
 
         if (CONFIG.filenameChoice === 'library') {
             const info = await getItemInfo(id);
-            console.warn('[VideoOSD Download DEBUG] getItemInfo result:', JSON.stringify(info));
-            a.download = (info && info.label)
+            const filename = (info && info.label)
                 ? (info.extension ? `${info.label}.${info.extension}` : info.label)
-                : '';
-            console.warn('[VideoOSD Download DEBUG] a.download set to:', a.download);
+                : null;
+            if (filename) {
+                a.href = `${ApiClient.serverAddress()}/Videos/${id}/stream?api_key=${ApiClient.accessToken()}&static=true`;
+                a.download = filename;
+            } else {
+                a.href = `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
+                a.download = '';
+            }
         } else {
+            a.href = `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
             a.download = '';
-            console.warn('[VideoOSD Download DEBUG] original mode: a.download = empty');
         }
 
         a.style.display = 'none';
