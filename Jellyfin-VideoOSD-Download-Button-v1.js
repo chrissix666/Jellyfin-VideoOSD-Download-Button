@@ -41,7 +41,7 @@ function dlIsSupportedPlatform() {
         // defaults and same colon-replacement/year logic as
         // Screenshot's identical setting, confirmed to be shared
         // 1:1 between the two mods.
-        includeYearMovies: false,
+        includeYearMovies: true,
         includeYearEpisodes: false,
         includeYearVideos: false
     };
