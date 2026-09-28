@@ -50,11 +50,38 @@ function dlIsSupportedPlatform() {
         const maxAttempts = 120;
         const delayMs = 250;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            // No ApiClient yet (jellyfin-web creates it once a server is
+            // known, e.g. after the server selection page): wait without
+            // using up an attempt, like the not-logged-in case below.
+            if (!window.ApiClient) attempt--;
             if (window.ApiClient && typeof ApiClient.getPluginConfiguration === 'function') {
+                // Not logged in yet (e.g. still on the login page): every
+                // request would only fail with 401, so wait without using up
+                // an attempt (the whole budget used to run out right there).
+                if (typeof ApiClient.accessToken === 'function' && !ApiClient.accessToken()) {
+                    attempt--;
+                    await new Promise(function (resolve) { setTimeout(resolve, delayMs); });
+                    continue;
+                }
                 try {
-                    const config = await ApiClient.getPluginConfiguration(PLUGIN_GUID);
+                    // The plugin's own endpoint (1.0.1.0+) is readable for every
+                    // signed-in user; Jellyfin's plugin configuration endpoint
+                    // is admin-only. Older plugin versions answer 404 there, then
+                    // the admin-only endpoint is used as before.
+                    let config;
+                    try {
+                        config = await ApiClient.getJSON(ApiClient.getUrl('VideoOSDTweaksCandy/ClientConfiguration'));
+                    } catch (endpointErr) {
+                        if (!(endpointErr && endpointErr.status === 404)) throw endpointErr;
+                        config = await ApiClient.getPluginConfiguration(PLUGIN_GUID);
+                    }
                     if (config) return config;
                 } catch (err) {
+                    // 403: the configuration endpoint is admin-only; 404: plugin
+                    // not installed (standalone use). Retrying can't change
+                    // either, so stop and use the defaults instead of sending
+                    // up to 120 failing requests.
+                    if (err && (err.status === 403 || err.status === 404)) return null;
                     // fall through, try again after the delay below
                 }
             }
@@ -196,8 +223,9 @@ function dlIsSupportedPlatform() {
 
             let label = item.Name || '';
             if (item.Type === 'Episode' && item.SeriesName) {
-                const s = String(item.ParentIndexNumber || 1).padStart(2, '0');
-                const e = String(item.IndexNumber || 1).padStart(2, '0');
+                // "??": season 0 (specials) / episode 0 are real numbers.
+                const s = String(item.ParentIndexNumber ?? 1).padStart(2, '0');
+                const e = String(item.IndexNumber ?? 1).padStart(2, '0');
                 label = `${item.SeriesName} - S${s}E${e} - ${item.Name || ''}`;
             }
             if (includeYear && item.ProductionYear) {
@@ -223,6 +251,26 @@ function dlIsSupportedPlatform() {
     const downloadCurrentVideo = async () => {
         const id = getCurrentVideoId();
         if (!id || !window.ApiClient) return;
+
+        // FIX: respect the user's download permission, like Jellyfin's
+        // own download entries. The "library" filename mode uses the
+        // stream endpoint, which the server serves regardless of the
+        // download permission, so users not allowed to download still got
+        // the original file; in the default mode they only got a silently
+        // failing download. Only the permission itself is checked here
+        // (not item.CanDownload, which is also false for e.g. .strm items
+        // that the library mode could always download).
+        try {
+            const user = await ApiClient.getCurrentUser();
+            if (user && user.Policy && user.Policy.EnableContentDownloading === false) {
+                if (window.Dashboard && typeof Dashboard.alert === 'function') {
+                    Dashboard.alert('Downloading is not allowed for your account.');
+                }
+                return;
+            }
+        } catch (err) {
+            // User lookup failed: fall through to the previous behavior.
+        }
 
         const a = document.createElement('a');
 
