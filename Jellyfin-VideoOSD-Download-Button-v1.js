@@ -258,9 +258,17 @@ function dlIsSupportedPlatform() {
             btn.className = 'btnDownload autoSize paper-icon-button-light';
             btn.title = 'Download';
 
+            // Inline SVG instead of the "Material Symbols Outlined" icon
+            // font: jellyfin-web ships no Material Symbols font, so without
+            // it (loaded by some other theme/plugin/CSS) the ligature text
+            // "download" was rendered as plain text instead of an icon. The
+            // path is the font's own "download" glyph (FILL 0, wght 400,
+            // GRAD 0, opsz 24), sized to the font's standard 24px, so it
+            // looks exactly like the font rendering did.
             const icon = document.createElement('span');
-            icon.className = 'xlargePaperIconButton material-symbols-outlined';
-            icon.textContent = 'download';
+            icon.className = 'xlargePaperIconButton jvosd-download-icon';
+            icon.style.cssText = 'display:inline-block;width:24px;height:24px;line-height:0;';
+            icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="display:block"><path d="M480 -320 280 -520 336 -578 440 -474V-800H520V-474L624 -578L680 -520ZM240 -160Q207 -160 183.5 -183.5Q160 -207 160 -240V-360H240V-240Q240 -240 240.0 -240.0Q240 -240 240 -240H720Q720 -240 720.0 -240.0Q720 -240 720 -240V-360H800V-240Q800 -207 776.5 -183.5Q753 -160 720 -160Z"/></svg>';
             btn.appendChild(icon);
 
             btn.addEventListener('click', event => {
@@ -296,7 +304,7 @@ function dlIsSupportedPlatform() {
     const injectButton = () => {
         if (!enabled) return false;
 
-        const favBtn = document.querySelector('.buttons.focuscontainer-x > .btnUserRating');
+        const favBtn = document.querySelector('#videoOsdPage:not(.hide) .buttons.focuscontainer-x > .btnUserRating');
         if (!favBtn || !favBtn.parentNode) return false;
 
         const container = favBtn.parentNode;
