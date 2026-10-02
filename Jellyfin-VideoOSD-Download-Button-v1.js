@@ -280,14 +280,14 @@ function dlIsSupportedPlatform() {
                 ? (info.extension ? `${info.label}.${info.extension}` : info.label)
                 : null;
             if (filename) {
-                a.href = `${ApiClient.serverAddress()}/Videos/${id}/stream?api_key=${ApiClient.accessToken()}&static=true`;
+                a.href = `${ApiClient.serverAddress()}/Videos/${id}/stream?ApiKey=${ApiClient.accessToken()}&static=true`;
                 a.download = filename;
             } else {
-                a.href = `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
+                a.href = `${ApiClient.serverAddress()}/Items/${id}/Download?ApiKey=${ApiClient.accessToken()}`;
                 a.download = '';
             }
         } else {
-            a.href = `${ApiClient.serverAddress()}/Items/${id}/Download?api_key=${ApiClient.accessToken()}`;
+            a.href = `${ApiClient.serverAddress()}/Items/${id}/Download?ApiKey=${ApiClient.accessToken()}`;
             a.download = '';
         }
 
