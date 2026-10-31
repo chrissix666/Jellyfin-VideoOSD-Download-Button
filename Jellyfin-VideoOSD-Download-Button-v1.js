@@ -202,6 +202,19 @@ function dlMain() {
     const sanitizeFilename = str =>
         str.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
 
+    // Name for a download from the stream endpoint, which sends no file name
+    // of its own: the item's name made safe for Windows (at most 150
+    // characters, no trailing dot or space) plus its container as extension.
+    const streamFilename = item => {
+        let name = sanitizeFilename(String(item.Name || '').replace(/\s*:\s*/g, ' - ').replace(/[\u0000-\u001f]/g, ''))
+            .slice(0, 150).replace(/[. ]+$/, '');
+        if (!name) return '';
+        const containers = String(item.Container || '').toLowerCase().split(',');
+        const ext = containers.includes('mp4') ? 'mp4' : containers[0];
+        if (/^[a-z0-9]+$/.test(ext) && !name.toLowerCase().endsWith('.' + ext)) name += '.' + ext;
+        return name;
+    };
+
     const getItemInfo = async (id) => {
         if (!window.ApiClient || !id) return null;
         try {
@@ -283,8 +296,21 @@ function dlMain() {
                 a.download = '';
             }
         } else {
-            a.href = `${ApiClient.serverAddress()}/Items/${id}/Download?ApiKey=${ApiClient.accessToken()}`;
-            a.download = '';
+            // Items without a downloadable original (e.g. Playnite Bridge's game
+            // videos: Items/{id}/Download answers 404) get the file from the
+            // stream endpoint instead.
+            let canDownload = true;
+            let item = null;
+            try {
+                item = await ApiClient.getItem(ApiClient.getCurrentUserId(), id);
+                canDownload = !!(item && item.CanDownload === true);
+            } catch (err) {
+                // Item lookup failed: keep the download endpoint.
+            }
+            a.href = canDownload
+                ? `${ApiClient.serverAddress()}/Items/${id}/Download?ApiKey=${ApiClient.accessToken()}`
+                : `${ApiClient.serverAddress()}/Videos/${id}/stream?ApiKey=${ApiClient.accessToken()}&static=true`;
+            a.download = canDownload ? '' : streamFilename(item);
         }
 
         a.style.display = 'none';
@@ -335,11 +361,40 @@ function dlMain() {
 
 
 
+    // Greys the button out (one-line reason as tooltip) when the server has no
+    // file for the playing item at all (e.g. a Steam video streamed as HLS).
+    // Checked once per item: no downloadable original -> one 1-byte request
+    // to the stream endpoint.
+    const downloadable = {};
+
+    const updateAvailability = async id => {
+        if (!id || !window.ApiClient) return;
+        if (!(id in downloadable)) {
+            downloadable[id] = true;
+            try {
+                const item = await ApiClient.getItem(ApiClient.getCurrentUserId(), id);
+                if (!(item && item.CanDownload === true)) {
+                    const r = await fetch(`${ApiClient.serverAddress()}/Videos/${id}/stream?ApiKey=${ApiClient.accessToken()}&static=true`,
+                        { headers: { Range: 'bytes=0-0' } });
+                    downloadable[id] = r.ok;
+                    if (r.body) r.body.cancel();
+                }
+            } catch (err) {
+                downloadable[id] = true;
+            }
+        }
+        if (btn && id === getCurrentVideoId()) {
+            btn.disabled = !downloadable[id];
+            btn.title = downloadable[id] ? 'Download' : 'No file to download for this video';
+        }
+    };
+
     const checkVideoChange = () => {
         const id = getCurrentVideoId();
 
         if (id !== lastVideoId) {
             lastVideoId = id;
+            updateAvailability(id);
         }
     };
 
@@ -357,6 +412,7 @@ function dlMain() {
             refreshResponsiveStyle();
             const newBtn = ensureBtn();
             container.insertBefore(newBtn, favBtn);
+            updateAvailability(getCurrentVideoId());
         }
 
         return true;
