@@ -12,33 +12,30 @@ function dlMain() {
     'use strict';
 
 
-    // ---- PLUGIN ADAPTER: config source, retrofit for VideoOSD Tweaks and Candy ----
+    // ---- PLUGIN ADAPTER: config source for VideoOSD Tweaks and Candy ----
 
     const CONFIG = {
         // ============================================================
         // == SHARED VALUES (both standalone and plugin usage) ==
-        // None of these were configurable at all before this retrofit
-        // (hide-on-narrow-window was a fixed CSS rule, and the
-        // download was always the raw server filename with no
-        // alternative). No dual-mode branch needed, same reasoning as
-        // the other bottom-right mods. No Centered Gap field here:
-        // corrected, General/Individual Centered Gap only ever
-        // applies to the 3 bottom-left mods (A-B Loop, Speed,
-        // FrameByFrame), never to Download/Screenshot in the
-        // bottom-right zone.
+        // Hand-edit these for standalone use; the plugin overwrites
+        // them via applyPluginConfig() once fetched. No separate
+        // standalone branch needed, same as the other bottom-right
+        // addons. No Centered Gap field here: the General/Individual
+        // Centered Gap only applies to the 3 bottom-left addons
+        // (A-B Loop, Speed, FrameByFrame), never to
+        // Download/Screenshot in the bottom-right zone.
         // ============================================================
 
         hideOnNarrowWindow: true,
 
-        // 'original' | 'library'. Original script always behaved like
-        // 'original' (a.download left empty, browser uses the
-        // server's own Content-Disposition filename).
+        // 'original' | 'library'. 'original' leaves a.download empty,
+        // so the browser uses the server's own Content-Disposition
+        // filename.
         filenameChoice: 'original',
 
         // Only relevant when filenameChoice is 'library'. Same
         // defaults and same colon-replacement/year logic as
-        // Screenshot's identical setting, confirmed to be shared
-        // 1:1 between the two mods.
+        // Screenshot's matching setting.
         includeYearMovies: true,
         includeYearEpisodes: false,
         includeYearVideos: false
@@ -56,7 +53,7 @@ function dlMain() {
             if (window.ApiClient && typeof ApiClient.getJSON === 'function') {
                 // Not logged in yet (e.g. still on the login page): every
                 // request would only fail with 401, so wait without using up
-                // an attempt (the whole budget used to run out right there).
+                // an attempt.
                 if (typeof ApiClient.accessToken === 'function' && !ApiClient.accessToken()) {
                     attempt--;
                     await new Promise(function (resolve) { setTimeout(resolve, delayMs); });
@@ -75,7 +72,7 @@ function dlMain() {
                     if (err && (err.status === 403 || err.status === 404)) return null;
                     // Server error (5xx), network error or empty answer: at most 3
                     // retries, 0.5 / 1 / 2 s apart, then the defaults until the next
-                    // fetch (this used to send up to 120 requests in 30 s).
+                    // fetch.
                     if (++failures > 3) return null;
                     await new Promise(function (resolve) { setTimeout(resolve, delayMs * Math.pow(2, failures)); });
                     continue;
@@ -86,19 +83,9 @@ function dlMain() {
         return null;
     }
 
-    // FIX for a real, confirmed bug found via a faithful full-stack test
-    // (all real scripts + real Jellyfin HTML together): this function was
-    // CALLED at the bottom of this file (inside fetchPluginConfig()'s
-    // .then), but never actually defined anywhere in it -- every other
-    // addon in this project defines its own applyPluginConfig(), this
-    // one simply lacked it. At runtime the call threw a ReferenceError
-    // inside the promise chain (an unhandled rejection, easy to miss),
-    // with the real consequence that ALL admin-configured Download
-    // settings were silently ignored and the script permanently ran on
-    // its standalone defaults, while the refreshResponsiveStyle() call
-    // scheduled right after it never ran from that path either. Mapping
-    // below mirrors the same pattern every other addon uses; guarded
-    // per-field so a missing/partial config never wipes a default.
+    // Maps the plugin's Download settings onto CONFIG, same pattern as
+    // the other addons. Guarded per field, so a missing or partial
+    // config never wipes a default.
     function applyPluginConfig(pluginConfig) {
         if (!pluginConfig) return;
 
@@ -153,8 +140,8 @@ function dlMain() {
     const isEnabledByCustomsState = () =>
         localStorage.getItem(CUSTOMS_STORAGE_KEY) !== 'false';
 
-    // Renamed from ensureResponsiveStyle(): can now also remove the style,
-    // not just add it, same pattern as the other retrofitted mods.
+    // Adds or removes the "hide on narrow window" style according to
+    // CONFIG.hideOnNarrowWindow, same pattern as the other addons.
     const refreshResponsiveStyle = () => {
         const existing = document.getElementById(RESPONSIVE_STYLE_ID);
         if (!CONFIG.hideOnNarrowWindow) {
@@ -180,20 +167,13 @@ function dlMain() {
             return ratingBtn.dataset.id;
         }
 
-        // FIX for a real bug found live: this used to console.warn() here
-        // unconditionally. checkVideoChange() below calls this on EVERY
-        // single MutationObserver tick (any class/style change anywhere
-        // on the page, which happens constantly during active playback,
-        // e.g. the progress slider updates), so a legitimate, expected
-        // "not available yet" moment (the OSD isn't showing, the rating
-        // button hasn't received its data-id yet, etc.) was logging a
-        // warning every single time, not just once. Confirmed live: over
-        // 59,000 repetitions of this single warning during one browser
-        // session, which is itself a serious performance problem (Chrome
-        // buffers/processes that volume of console output even with
-        // devtools closed), independent of and in addition to whatever
-        // else it was cluttering. This return path is a normal, frequent,
-        // expected outcome, not something worth logging at all.
+        // No logging here: checkVideoChange() below calls this on every
+        // MutationObserver tick (class/style changes happen constantly
+        // during playback, e.g. the progress slider), and "no id yet"
+        // (OSD not showing, rating button without data-id) is a normal,
+        // frequent outcome. A warning here would flood the console with
+        // tens of thousands of lines, which costs performance even with
+        // devtools closed.
         return null;
     };
 
@@ -261,14 +241,13 @@ function dlMain() {
         const id = getCurrentVideoId();
         if (!id || !window.ApiClient) return;
 
-        // FIX: respect the user's download permission, like Jellyfin's
-        // own download entries. The "library" filename mode uses the
-        // stream endpoint, which the server serves regardless of the
-        // download permission, so users not allowed to download still got
-        // the original file; in the default mode they only got a silently
-        // failing download. Only the permission itself is checked here
-        // (not item.CanDownload, which is also false for e.g. .strm items
-        // that the library mode could always download).
+        // Respect the account's download permission, like Jellyfin's own
+        // download entries. The "library" filename mode uses the stream
+        // endpoint, which the server serves regardless of the download
+        // permission, and in the default mode the download would just
+        // fail silently. Only the permission itself is checked here (not
+        // item.CanDownload, which is also false for e.g. .strm items
+        // that the library mode can still download).
         try {
             const user = await ApiClient.getCurrentUser();
             if (user && user.Policy && user.Policy.EnableContentDownloading === false) {
@@ -278,7 +257,7 @@ function dlMain() {
                 return;
             }
         } catch (err) {
-            // User lookup failed: fall through to the previous behavior.
+            // User lookup failed: download without the permission check.
         }
 
         const a = document.createElement('a');
@@ -331,10 +310,10 @@ function dlMain() {
             // Inline SVG instead of the "Material Symbols Outlined" icon
             // font: jellyfin-web ships no Material Symbols font, so without
             // it (loaded by some other theme/plugin/CSS) the ligature text
-            // "download" was rendered as plain text instead of an icon. The
+            // "download" would render as plain text instead of an icon. The
             // path is the font's own "download" glyph (FILL 0, wght 400,
             // GRAD 0, opsz 24), sized to the font's standard 24px, so it
-            // looks exactly like the font rendering did.
+            // looks exactly like the font rendering.
             const icon = document.createElement('span');
             icon.className = 'xlargePaperIconButton jvosd-download-icon';
             icon.style.cssText = 'display:inline-block;width:24px;height:24px;line-height:0;';
@@ -423,17 +402,13 @@ function dlMain() {
 
         enabled = true;
 
-        // FIX for a possible cause of a real, live-observed hang: this
-        // observer watches the whole document.body subtree for any
-        // style/class change, which fires constantly during active video
-        // playback (Jellyfin's own progress bar updates style/class very
-        // frequently), and it's one of 3 currently-enabled mods with an
-        // essentially identical, independent observer, all reacting to
-        // the same mutations simultaneously. Debounced to at most once
-        // every 100ms: still responsive enough to catch newly inserted
-        // elements quickly, but coalesces a rapid burst of many mutations
-        // into a single actual check instead of running the callback
-        // hundreds or thousands of times per second.
+        // This observer watches the whole document.body subtree for
+        // style/class changes, which fire constantly during playback
+        // (Jellyfin's progress bar updates style/class very often), and
+        // other addons run similar observers. Debounced to at most once
+        // every 100ms: still quick to catch newly inserted elements, but
+        // a burst of mutations becomes a single check instead of
+        // hundreds per second.
         let debounceTimer = null;
         observer = new MutationObserver(() => {
             if (debounceTimer) return;
@@ -576,7 +551,7 @@ function dlMain() {
 }
 
 // Phones, tablets and TV devices: this addon stays off there unless the plugin
-// setting "DownloadOnTouchAndTvDevices" allows it (the owner's choice, default off). The setting is
+// setting "DownloadOnTouchAndTvDevices" allows it (admin setting, default off). The setting is
 // read from the plugin's own endpoint, which every signed-in user may read.
 function dlAllowedOnThisDevice() {
   // Signed out (login page) nothing is sent and no timer runs: the check
